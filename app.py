@@ -18,7 +18,7 @@ def scrape_general_images(target_url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    found_urls = set() # 重複を避けるためにsetを使用
+    found_urls = set()
     try:
         response = requests.get(target_url, headers=headers, timeout=15)
         response.raise_for_status()
@@ -31,7 +31,7 @@ def scrape_general_images(target_url):
     except Exception as e:
         print(f"汎用モードでの解析中にエラーが発生: {e}")
 
-    # 時間のかかるサイズ順ソートを削除。見つかった順に最大30件までを対象とする。
+    # 見つかった順に最大30件までを対象とする
     return list(found_urls)[:30]
 
 def scrape_oricon_images(target_url, headers):
@@ -68,11 +68,25 @@ def index():
     os.makedirs(DOWNLOAD_DIR)
 
     if request.method == 'POST':
-        url = request.form.get('url')
-        if not url:
+        # ▼▼▼ 修正箇所 ▼▼▼
+        raw_url = request.form.get('url')
+        if not raw_url:
             return render_template('index.html', error="URLを入力してください。")
+
+        # モバイルブラウザの特殊な挙動で複数のURLが結合される場合への対策
+        # 文字列をスペースで分割し、最後の有効なURLらしきものを取得する
+        url_parts = raw_url.strip().split()
+        url = ""
+        for part in reversed(url_parts):
+            if part.startswith('http'):
+                url = part
+                break
         
-        print(f"URLを受け取りました: {url}")
+        if not url:
+            return render_template('index.html', error=f"有効なURLを抽出できませんでした: {raw_url}", url=raw_url)
+        # ▲▲▲ 修正箇所 ▲▲▲
+        
+        print(f"URLを受け取りました (修正後): {url}")
         
         image_urls_to_download = []
         try:
